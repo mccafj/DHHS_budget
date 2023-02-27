@@ -107,13 +107,16 @@ ORDER BY total_count DESC;
 
 -- calculating total awards by congressional district, for 2020 and creating CTE
 
-WITH ConDist2020 (ConDist, TotalConDistCount)
+WITH ConDist2020 (State, ConDist, TotalConDistCount)
 AS
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2020Q1-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state
+	, recipient_congressional_district
 )
 SELECT *
 FROM ConDist2020
@@ -122,26 +125,32 @@ ORDER BY TotalConDistCount DESC;
 
 -- and for 2021
 
-WITH ConDist2021 (ConDist, TotalConDistCount)
+WITH ConDist2021 (State, ConDist, TotalConDistCount)
 AS
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2021P01-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state
+	, recipient_congressional_district
 )
 SELECT *
 FROM ConDist2021
 ORDER BY TotalConDistCount DESC;
 
 -- also for 2022
-WITH ConDist2022 (ConDist, TotalConDistCount)
+WITH ConDist2022 (State, ConDist, TotalConDistCount)
 AS
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2022P01-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state
+	, recipient_congressional_district
 )
 SELECT *
 FROM ConDist2022
@@ -151,53 +160,72 @@ ORDER BY TotalConDistCount DESC;
 -- Creating a view for separate congressional districts
 CREATE VIEW PerConDist AS
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2020Q1-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state
+	, recipient_congressional_district
 )
 UNION
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2021P01-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state 
+	, recipient_congressional_district
 )
 UNION
 (
-SELECT DISTINCT recipient_congressional_district AS ConDist
+SELECT DISTINCT recipient_state
+	, recipient_congressional_district AS ConDist
 	, COUNT(recipient_congressional_district) AS TotalConDistCount
 FROM [FY2022P01-P12_All_FA_AccountBreakdownByAward]
-GROUP BY recipient_congressional_district
+WHERE recipient_congressional_district IS NOT NULL
+GROUP BY recipient_state 
+	, recipient_congressional_district
 );
+
+SELECT *
+FROM PerConDist
+WHERE recipient_state IS NOT NULL
+ORDER BY ConDist, TotalConDistCount DESC, recipient_state;
+
 
 -- And creating a view for totals
 CREATE VIEW TotalConDist
 AS
 (
-SELECT ConDist
+SELECT recipient_state
+	, ConDist
 	, SUM(TotalConDistCount) AS total_count
 FROM PerConDist
-GROUP BY ConDist
+GROUP BY recipient_state 
+	, ConDist
 -- ORDER BY total_count DESC
 );
 
-SELECT DISTINCT ConDist
+SELECT DISTINCT recipient_state
+	, ConDist
 	, total_count
 FROM TotalConDist
 ORDER BY total_count DESC;
 
 -- JOIN back to 2020 Account Breakdown by Award
--- for whatever reason, it lists the same recipient_state's across multiple recipient_congressional_districts
--- see below for 'PA' as an example
--- I double-checked by sorting in Excel too.  
+
 SELECT a.recipient_state
 	, b.ConDist
 	, b.total_count
 FROM [FY2020Q1-P12_All_FA_AccountBreakdownByAward] a
 	JOIN TotalConDist b
-	ON a.recipient_congressional_district = b.ConDist
-WHERE recipient_state = 'PA'
+	ON a.recipient_state = b.recipient_state
+WHERE a.recipient_congressional_district IS NOT NULL
+GROUP BY a.recipient_state
+	, ConDist
+	, total_count
 ORDER BY total_count DESC;
 
 
